@@ -42,18 +42,59 @@ async function assignedBatches(instructorId) {
   return [...new Map(subjects.map((subject) => [subject.batch.id, subject.batch])).values()];
 }
 
+async function dashboardSnapshots(students) {
+  const studentIds = students.map((student) => student.id);
+  const byStudent = new Map(students.map((student) => [
+    student.id,
+    {
+      attendance: { total: 0, present: 0, percentage: 0, shortage: false },
+      marks: { totalScore: 0, totalMax: 0, percentage: 0 }
+    }
+  ]));
+  if (!studentIds.length) return [];
+
+  const [attendanceRecords, marks] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: { studentId: { in: studentIds } },
+      select: { studentId: true, status: true }
+    }),
+    prisma.mark.findMany({
+      where: { studentId: { in: studentIds } },
+      select: { studentId: true, score: true, exam: { select: { maxMarks: true } } }
+    })
+  ]);
+
+  const presentStatuses = new Set(["PRESENT", "LATE"]);
+  for (const record of attendanceRecords) {
+    const summary = byStudent.get(record.studentId).attendance;
+    summary.total += 1;
+    if (presentStatuses.has(record.status)) summary.present += 1;
+  }
+  for (const mark of marks) {
+    const summary = byStudent.get(mark.studentId).marks;
+    summary.totalScore += mark.score;
+    summary.totalMax += mark.exam.maxMarks;
+  }
+
+  return students.map((student) => {
+    const snapshot = byStudent.get(student.id);
+    snapshot.attendance.percentage = snapshot.attendance.total
+      ? Math.round((snapshot.attendance.present / snapshot.attendance.total) * 100)
+      : 0;
+    snapshot.attendance.shortage = snapshot.attendance.total ? snapshot.attendance.percentage < 75 : false;
+    snapshot.marks.percentage = snapshot.marks.totalMax
+      ? Math.round((snapshot.marks.totalScore / snapshot.marks.totalMax) * 100)
+      : 0;
+    return snapshot;
+  });
+}
+
 instructorRouter.get(
   "/dashboard",
   asyncHandler(async (req, res) => {
     const instructorId = req.user.instructor.id;
     const students = await assignedStudents(instructorId);
-    const snapshots = [];
-    for (const student of students) {
-      snapshots.push({
-        attendance: await attendanceSummary(student.id),
-        marks: await marksSummary(student.id, true)
-      });
-    }
+    const snapshots = await dashboardSnapshots(students);
     const ranked = students.map((student, index) => ({ student, snapshot: snapshots[index] }));
     const byMarks = [...ranked].sort((a, b) => b.snapshot.marks.percentage - a.snapshot.marks.percentage);
     const reportUsage = await prisma.report.count({ where: { studentId: { in: students.map((student) => student.id) } } });

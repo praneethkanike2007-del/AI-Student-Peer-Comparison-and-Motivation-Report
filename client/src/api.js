@@ -1,5 +1,7 @@
 import axios from "axios";
 
+// On Vercel, VITE_API_URL should be set to "/api" (same domain)
+// Locally, it defaults to "http://localhost:5000/api"
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 });

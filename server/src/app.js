@@ -16,7 +16,23 @@ export const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc)
+      if (!origin) return callback(null, true);
+      // Allow localhost dev and any vercel.app domain
+      if (
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        origin.includes(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+      // Also allow the configured CLIENT_ORIGIN
+      if (process.env.CLIENT_ORIGIN && origin === process.env.CLIENT_ORIGIN) {
+        return callback(null, true);
+      }
+      callback(null, true);
+    },
     credentials: true
   })
 );

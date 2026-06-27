@@ -75,6 +75,29 @@ function writeFetchCache(path, data) {
   }
 }
 
+function writeRelatedCaches(path, data) {
+  if (path === "/student/dashboard") {
+    writeFetchCache("/student/attendance", data.attendance);
+    writeFetchCache("/student/marks", data.marks);
+    writeFetchCache("/student/rank", data.comparison);
+  }
+}
+
+async function warmPortalCache(role) {
+  const paths = role === "STUDENT"
+    ? ["/student/dashboard", "/student/profile", "/student/attendance", "/student/marks", "/student/rank", "/student/reports", "/student/feedback", "/student/assistant/history", "/ai/status"]
+    : ["/instructor/dashboard", "/instructor/students", "/instructor/subjects", "/instructor/attendance/history", "/instructor/marks/history", "/instructor/reports", "/instructor/analytics"];
+
+  await Promise.allSettled(paths.map(async (path) => {
+    const cached = readFetchCache(path);
+    if (cached) return cached;
+    const { data } = await api.get(path);
+    writeFetchCache(path, data);
+    writeRelatedCaches(path, data);
+    return data;
+  }));
+}
+
 function useFetch(path, deps = []) {
   const cachedData = readFetchCache(path);
   const [state, setState] = useState({ loading: !cachedData, error: "", data: cachedData });
@@ -88,6 +111,7 @@ function useFetch(path, deps = []) {
     try {
       const { data } = await api.get(path);
       writeFetchCache(path, data);
+      writeRelatedCaches(path, data);
       setState({ loading: false, error: "", data });
     } catch (error) {
       setState({ loading: false, error: error.response?.data?.message || "Unable to load data", data: null });
@@ -336,6 +360,7 @@ function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("Checking access...");
   async function submit(event) {
     event.preventDefault();
     await signIn(form);
@@ -346,10 +371,13 @@ function Login() {
       return;
     }
     setLoading(true);
+    setLoadingText("Checking access...");
     setError("");
     try {
       const { data } = await api.post("/auth/login", credentials);
       saveSession(data);
+      setLoadingText("Preparing portal...");
+      await warmPortalCache(data.user.role);
       navigate(data.user.role === "STUDENT" ? "/student/dashboard" : "/instructor/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Please check the deployed API status at /api/public/status.");
@@ -374,7 +402,7 @@ function Login() {
         <label>Email<input required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
         <label>Password<input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
         {error && <div className="inline-error">{error}</div>}
-        <button className="primary-button login-submit" disabled={loading}>{loading ? "Checking access..." : "Sign in"}</button>
+        <button className="primary-button login-submit" disabled={loading}>{loading ? loadingText : "Sign in"}</button>
         <div className="sample-accounts">
           <div>
             <p>Ready-made sample accounts for client demo</p>

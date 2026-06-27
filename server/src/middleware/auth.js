@@ -22,7 +22,7 @@ export async function requireAuth(req, _res, next) {
     if (!user) {
       user = await prisma.user.findUnique({
         where: { id: payload.sub },
-        include: { student: true, instructor: true }
+        include: { student: { include: { batch: true } }, instructor: true }
       });
       if (user) userCache.set(payload.sub, { time: Date.now(), user });
     }

@@ -13,6 +13,7 @@ export function gradeFor(score, maxMarks) {
 
 export async function getStudentForUser(user) {
   if (!user.student) throw new HttpError(404, "Student profile not found");
+  if (user.student.batch) return user.student;
   return prisma.student.findUnique({
     where: { id: user.student.id },
     include: { user: true, batch: true }
@@ -153,11 +154,13 @@ export async function batchComparison(studentId) {
 }
 
 export async function studentAcademicSnapshot(studentId) {
-  const attendance = await attendanceSummary(studentId);
-  const marks = await marksSummary(studentId);
-  const comparison = await batchComparison(studentId);
-  const reports = await prisma.report.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 8 });
-  const feedback = await prisma.aiFeedback.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 5 });
-  const notifications = await prisma.notification.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 6 });
+  const [attendance, marks, comparison, reports, feedback, notifications] = await Promise.all([
+    attendanceSummary(studentId),
+    marksSummary(studentId),
+    batchComparison(studentId),
+    prisma.report.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.aiFeedback.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.notification.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 6 })
+  ]);
   return { attendance, marks, comparison, reports, feedback, notifications };
 }

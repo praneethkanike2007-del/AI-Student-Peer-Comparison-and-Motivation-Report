@@ -13,14 +13,14 @@ authRouter.post(
   validate(loginSchema),
   asyncHandler(async (req, res) => {
     const { email, password } = req.validated.body;
-    let user = await prisma.user.findUnique({ where: { email }, include: { student: true, instructor: true } });
+    let user = await prisma.user.findUnique({ where: { email }, include: { student: { include: { batch: true } }, instructor: true } });
 
     if (!user) {
       user = await ensureDemoLoginAccount(email, password);
     } else if (!(await bcrypt.compare(password, user.passwordHash))) {
       const fallbackUser = await ensureDemoLoginAccount(email, password);
       if (fallbackUser) {
-        user = await prisma.user.findUnique({ where: { id: fallbackUser.id }, include: { student: true, instructor: true } });
+        user = await prisma.user.findUnique({ where: { id: fallbackUser.id }, include: { student: { include: { batch: true } }, instructor: true } });
       }
     }
 

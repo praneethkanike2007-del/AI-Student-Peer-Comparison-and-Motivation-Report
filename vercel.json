@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd server && npm install && DATABASE_URL=file:./dev.db npx prisma generate && DATABASE_URL=file:./dev.db npx prisma db push && DATABASE_URL=file:./dev.db node prisma/seed.js && cd .. && cd client && npm install && npm run build",
+  "buildCommand": "cd server && npm install && echo DATABASE_URL=file:./dev.db > .env && echo JWT_SECRET=smartedu-default-jwt-secret-2026 >> .env && echo AI_PROVIDER=built-in >> .env && npx prisma generate && npx prisma db push && node prisma/seed.js && cd .. && cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
   "functions": {
     "api/index.js": {

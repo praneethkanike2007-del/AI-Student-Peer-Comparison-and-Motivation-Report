@@ -10,6 +10,7 @@ import { studentRouter } from "./routes/student.js";
 import { instructorRouter } from "./routes/instructor.js";
 import { aiRouter } from "./routes/ai.js";
 import { requireAuth } from "./middleware/auth.js";
+import { responseCache } from "./middleware/responseCache.js";
 
 export const app = express();
 
@@ -44,8 +45,8 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 400 }));
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/public", publicRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/student", requireAuth, studentRouter);
-app.use("/api/instructor", requireAuth, instructorRouter);
+app.use("/api/student", requireAuth, responseCache, studentRouter);
+app.use("/api/instructor", requireAuth, responseCache, instructorRouter);
 app.use("/api/ai", requireAuth, aiRouter);
 
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));

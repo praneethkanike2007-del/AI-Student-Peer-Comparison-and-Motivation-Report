@@ -11,14 +11,6 @@ export function gradeFor(score, maxMarks) {
   return "Needs Work";
 }
 
-async function mapSeries(items, mapper) {
-  const results = [];
-  for (const item of items) {
-    results.push(await mapper(item));
-  }
-  return results;
-}
-
 export async function getStudentForUser(user) {
   if (!user.student) throw new HttpError(404, "Student profile not found");
   return prisma.student.findUnique({
@@ -118,7 +110,27 @@ export async function marksSummary(studentId, includeUnpublished = false) {
 export async function batchComparison(studentId) {
   const student = await prisma.student.findUnique({ where: { id: studentId }, include: { batch: true } });
   const peers = await prisma.student.findMany({ where: { batchId: student.batchId }, select: { id: true } });
-  const summaries = await mapSeries(peers, async (peer) => ({ id: peer.id, ...(await marksSummary(peer.id)) }));
+  const marks = await prisma.mark.findMany({
+    where: {
+      studentId: { in: peers.map((peer) => peer.id) },
+      exam: { published: true }
+    },
+    select: {
+      studentId: true,
+      score: true,
+      exam: { select: { maxMarks: true } }
+    }
+  });
+  const totals = new Map(peers.map((peer) => [peer.id, { id: peer.id, totalScore: 0, totalMax: 0, percentage: 0 }]));
+  for (const mark of marks) {
+    const total = totals.get(mark.studentId);
+    total.totalScore += mark.score;
+    total.totalMax += mark.exam.maxMarks;
+  }
+  const summaries = [...totals.values()].map((summary) => ({
+    ...summary,
+    percentage: summary.totalMax ? Math.round((summary.totalScore / summary.totalMax) * 100) : 0
+  }));
   const ranked = summaries.sort((a, b) => b.percentage - a.percentage);
   const current = ranked.find((item) => item.id === studentId) || { percentage: 0 };
   const rank = ranked.findIndex((item) => item.id === studentId) + 1 || null;

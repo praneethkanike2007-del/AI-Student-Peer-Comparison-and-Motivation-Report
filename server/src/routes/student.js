@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../prisma.js";
 import { requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/http.js";
-import { batchComparison, getStudentForUser, studentAcademicSnapshot } from "../services/academicService.js";
+import { attendanceSummary, batchComparison, getStudentForUser, marksSummary, studentAcademicSnapshot } from "../services/academicService.js";
 
 export const studentRouter = Router();
 studentRouter.use(requireRole("STUDENT"));
@@ -22,8 +22,7 @@ studentRouter.get(
   "/attendance",
   asyncHandler(async (req, res) => {
     const student = await getStudentForUser(req.user);
-    const snapshot = await studentAcademicSnapshot(student.id);
-    res.json(snapshot.attendance);
+    res.json(await attendanceSummary(student.id));
   })
 );
 
@@ -31,8 +30,7 @@ studentRouter.get(
   "/marks",
   asyncHandler(async (req, res) => {
     const student = await getStudentForUser(req.user);
-    const snapshot = await studentAcademicSnapshot(student.id);
-    res.json(snapshot.marks);
+    res.json(await marksSummary(student.id));
   })
 );
 

@@ -102,6 +102,27 @@ function useFetch(path, deps = []) {
 function Shell({ user, children }) {
   const navigate = useNavigate();
   const nav = user.role === "STUDENT" ? studentNav : instructorNav;
+  useEffect(() => {
+    const paths = user.role === "STUDENT"
+      ? ["/student/dashboard", "/student/profile", "/student/attendance", "/student/marks", "/student/rank", "/student/reports", "/student/feedback", "/student/assistant/history", "/ai/status"]
+      : ["/instructor/dashboard", "/instructor/students", "/instructor/subjects", "/instructor/attendance/history", "/instructor/marks/history", "/instructor/reports", "/instructor/analytics"];
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      for (const path of paths) {
+        if (cancelled || readFetchCache(path)) continue;
+        try {
+          const { data } = await api.get(path);
+          writeFetchCache(path, data);
+        } catch {
+          // Background prefetch should never block the visible page.
+        }
+      }
+    }, 700);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [user.role, user.id]);
   const logout = () => {
     clearSession();
     navigate("/login");

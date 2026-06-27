@@ -206,12 +206,20 @@ instructorRouter.get(
     const subjectIds = await assignedSubjectIds(req.user.instructor.id);
     const sessions = await prisma.attendanceSession.findMany({
       where: { subjectId: { in: subjectIds } },
-      include: {
-        subject: { include: { batch: true } },
-        records: { include: { student: true } }
+      select: {
+        id: true,
+        date: true,
+        topic: true,
+        subject: {
+          select: {
+            name: true,
+            batch: { select: { section: true } }
+          }
+        },
+        records: { select: { status: true } }
       },
       orderBy: { date: "desc" },
-      take: 40
+      take: 20
     });
     res.json({
       sessions: sessions.map((session) => {
@@ -279,12 +287,28 @@ instructorRouter.get(
     const subjectIds = await assignedSubjectIds(req.user.instructor.id);
     const exams = await prisma.exam.findMany({
       where: { subjectId: { in: subjectIds } },
-      include: {
-        subject: { include: { batch: true } },
-        marks: { include: { student: true } }
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        maxMarks: true,
+        heldOn: true,
+        published: true,
+        subject: {
+          select: {
+            name: true,
+            batch: { select: { section: true } }
+          }
+        },
+        marks: {
+          select: {
+            studentId: true,
+            score: true
+          }
+        }
       },
       orderBy: { heldOn: "desc" },
-      take: 40
+      take: 20
     });
     res.json({
       exams: exams.map((exam) => {
@@ -342,14 +366,19 @@ instructorRouter.get(
   "/analytics",
   asyncHandler(async (req, res) => {
     const students = await assignedStudents(req.user.instructor.id);
-    const rows = await Promise.all(
-      students.map(async (student) => ({
-        student: { id: student.id, name: student.fullName, rollNumber: student.rollNumber },
-        attendance: await attendanceSummary(student.id),
-        marks: await marksSummary(student.id, true),
-        comparison: await batchComparison(student.id)
-      }))
+    const snapshots = await dashboardSnapshots(students);
+    const rankByStudent = new Map(
+      students
+        .map((student, index) => ({ id: student.id, percentage: snapshots[index].marks.percentage }))
+        .sort((a, b) => b.percentage - a.percentage)
+        .map((item, index) => [item.id, index + 1])
     );
+    const rows = students.map((student, index) => ({
+      student: { id: student.id, name: student.fullName, rollNumber: student.rollNumber },
+      attendance: snapshots[index].attendance,
+      marks: snapshots[index].marks,
+      comparison: { rank: rankByStudent.get(student.id) || null }
+    }));
     res.json({ rows });
   })
 );
@@ -360,8 +389,18 @@ instructorRouter.get(
     const students = await assignedStudents(req.user.instructor.id);
     const reports = await prisma.report.findMany({
       where: { studentId: { in: students.map((student) => student.id) } },
-      include: { student: true },
-      orderBy: { createdAt: "desc" }
+      select: {
+        id: true,
+        studentId: true,
+        type: true,
+        title: true,
+        period: true,
+        content: true,
+        createdAt: true,
+        student: { select: { fullName: true, rollNumber: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 30
     });
     res.json({ reports });
   })

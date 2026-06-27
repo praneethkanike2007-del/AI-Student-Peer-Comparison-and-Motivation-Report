@@ -46,12 +46,48 @@ const instructorNav = [
   ["/instructor/remarks", MessageSquare, "Remarks"]
 ];
 
+const fetchCache = new Map();
+const cachePrefix = "smartedu_cache:";
+const cacheMs = 5 * 60 * 1000;
+
+function readFetchCache(path) {
+  const memory = fetchCache.get(path);
+  if (memory && Date.now() - memory.time < cacheMs) return memory.data;
+  try {
+    const raw = sessionStorage.getItem(`${cachePrefix}${path}`);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (Date.now() - cached.time > cacheMs) return null;
+    fetchCache.set(path, cached);
+    return cached.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeFetchCache(path, data) {
+  const cached = { time: Date.now(), data };
+  fetchCache.set(path, cached);
+  try {
+    sessionStorage.setItem(`${cachePrefix}${path}`, JSON.stringify(cached));
+  } catch {
+    // Storage can fail in private mode; memory cache still helps during this tab.
+  }
+}
+
 function useFetch(path, deps = []) {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
-  const load = async () => {
-    setState((current) => ({ ...current, loading: true, error: "" }));
+  const cachedData = readFetchCache(path);
+  const [state, setState] = useState({ loading: !cachedData, error: "", data: cachedData });
+  const load = async (force = false) => {
+    const cached = force ? null : readFetchCache(path);
+    if (cached) {
+      setState({ loading: false, error: "", data: cached });
+      return;
+    }
+    setState((current) => ({ ...current, loading: !current.data, error: "" }));
     try {
       const { data } = await api.get(path);
+      writeFetchCache(path, data);
       setState({ loading: false, error: "", data });
     } catch (error) {
       setState({ loading: false, error: error.response?.data?.message || "Unable to load data", data: null });
@@ -60,7 +96,7 @@ function useFetch(path, deps = []) {
   useEffect(() => {
     load();
   }, deps);
-  return { ...state, reload: load };
+  return { ...state, reload: () => load(true) };
 }
 
 function Shell({ user, children }) {

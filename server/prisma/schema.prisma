@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  role         String
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  student      Student?
+  instructor   Instructor?
+  aiChats      AiChat[]
+}
+
+model Batch {
+  id        String    @id @default(cuid())
+  name      String
+  course    String
+  branch    String
+  year      Int
+  semester  Int
+  section   String
+  students  Student[]
+  subjects  Subject[]
+  createdAt DateTime  @default(now())
+}
+
+model Student {
+  id              String              @id @default(cuid())
+  userId          String              @unique
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batchId         String
+  batch           Batch               @relation(fields: [batchId], references: [id])
+  fullName        String
+  studentCode     String              @unique
+  rollNumber      String
+  gender          String
+  dateOfBirth     DateTime
+  phone           String
+  parentName      String
+  parentContact   String
+  address         String
+  admissionNumber String              @unique
+  residenceType   String
+  profilePhotoUrl String?
+  attendance      AttendanceRecord[]
+  marks           Mark[]
+  reports         Report[]
+  feedback        AiFeedback[]
+  remarks         InstructorRemark[]
+  notifications   Notification[]
+}
+
+model Instructor {
+  id        String              @id @default(cuid())
+  userId    String              @unique
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String
+  employeeCode String           @unique
+  department String
+  phone     String
+  subjects  SubjectInstructor[]
+  remarks   InstructorRemark[]
+}
+
+model Subject {
+  id          String              @id @default(cuid())
+  batchId     String
+  batch       Batch               @relation(fields: [batchId], references: [id])
+  code        String
+  name        String
+  credits     Int
+  instructors SubjectInstructor[]
+  attendanceSessions AttendanceSession[]
+  exams       Exam[]
+  marks       Mark[]
+  @@unique([batchId, code])
+}
+
+model SubjectInstructor {
+  id           String      @id @default(cuid())
+  subjectId    String
+  instructorId String
+  subject      Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  instructor   Instructor  @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  @@unique([subjectId, instructorId])
+}
+
+model AttendanceSession {
+  id           String             @id @default(cuid())
+  subjectId    String
+  instructorId String
+  date         DateTime
+  topic        String?
+  subject      Subject            @relation(fields: [subjectId], references: [id])
+  records      AttendanceRecord[]
+  createdAt    DateTime           @default(now())
+  @@unique([subjectId, date])
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  studentId String
+  status    String
+  note      String?
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student   Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  @@unique([sessionId, studentId])
+}
+
+model Exam {
+  id          String    @id @default(cuid())
+  subjectId   String
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  title       String
+  type        String
+  maxMarks    Float
+  published   Boolean   @default(false)
+  heldOn      DateTime
+  marks       Mark[]
+}
+
+model Mark {
+  id        String   @id @default(cuid())
+  examId    String
+  subjectId String
+  studentId String
+  score     Float
+  grade     String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+  @@unique([examId, studentId])
+}
+
+model AiChat {
+  id        String   @id @default(cuid())
+  userId    String
+  prompt    String
+  response  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiFeedback {
+  id        String   @id @default(cuid())
+  studentId String
+  content   String
+  dataJson  String
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id        String     @id @default(cuid())
+  studentId String
+  type      String
+  title     String
+  period    String
+  content   String
+  dataJson  String
+  createdAt DateTime   @default(now())
+  student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model InstructorRemark {
+  id           String     @id @default(cuid())
+  studentId    String
+  instructorId String
+  content      String
+  visibleToStudent Boolean @default(false)
+  createdAt    DateTime   @default(now())
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  studentId String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}

@@ -295,7 +295,7 @@ function Login() {
       saveSession(data);
       navigate(data.user.role === "STUDENT" ? "/student/dashboard" : "/instructor/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please check that the backend is running on localhost:5000.");
+      setError(err.response?.data?.message || "Login failed. Please check the deployed API status at /api/public/status.");
     } finally {
       setLoading(false);
     }

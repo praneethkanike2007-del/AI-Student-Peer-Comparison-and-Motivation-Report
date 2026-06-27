@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../prisma.js";
 
 const defaultPassword = "Password123!";
+const passwordHashRounds = Number(process.env.BCRYPT_ROUNDS || 8);
 
 const demoAccounts = [
   {
@@ -219,7 +220,7 @@ async function ensureAiContent(userId, studentId) {
 }
 
 export async function ensureDemoAccounts() {
-  const passwordHash = await bcrypt.hash(defaultPassword, 12);
+  const passwordHash = await bcrypt.hash(defaultPassword, passwordHashRounds);
   const batch = await ensureBatch();
 
   let studentUserId = null;
@@ -250,7 +251,7 @@ export async function ensureDemoLoginAccount(email, password) {
   const account = demoAccounts.find((item) => item.email === email);
   if (!account || password !== defaultPassword) return null;
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(password, passwordHashRounds);
   const user = await ensureUser(account.email, account.role, passwordHash);
 
   if (account.role === "STUDENT") {

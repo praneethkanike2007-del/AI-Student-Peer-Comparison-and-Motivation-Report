@@ -16,6 +16,7 @@ import { attendanceSchema, instructorStudentCreateSchema, marksSchema, publishSc
 import { generatePeerReport } from "../services/aiService.js";
 
 export const instructorRouter = Router();
+const passwordHashRounds = Number(process.env.BCRYPT_ROUNDS || 8);
 instructorRouter.use(requireRole("INSTRUCTOR"));
 
 async function assignedSubjectIds(instructorId) {
@@ -140,7 +141,7 @@ instructorRouter.post(
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new HttpError(409, "An account already exists with this email");
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, passwordHashRounds);
     const user = await prisma.user.create({
       data: {
         email,

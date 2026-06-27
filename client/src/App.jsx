@@ -386,10 +386,10 @@ function Login() {
     setError("");
     try {
       const { data } = await api.post("/auth/login", credentials);
+      clearPortalCache();
       saveSession(data);
-      setLoadingText("Preparing portal...");
-      await warmPortalCache(data.user.role);
       navigate(data.user.role === "STUDENT" ? "/student/dashboard" : "/instructor/dashboard");
+      warmPortalCache(data.user.role).catch(() => {});
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Please check the deployed API status at /api/public/status.");
     } finally {

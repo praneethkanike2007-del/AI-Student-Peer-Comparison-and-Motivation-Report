@@ -32,12 +32,13 @@ Build command: npm install && npx prisma generate
 Start command: npm run start
 ```
 
-Use a hosted PostgreSQL/MySQL database for production. SQLite is only for local demo.
+Use Supabase PostgreSQL for production. SQLite was only for local demo.
 
 Set backend environment variables:
 
 ```env
-DATABASE_URL="your-production-database-url"
+DATABASE_URL="your-supabase-pooled-connection-url"
+DIRECT_URL="your-supabase-direct-connection-url"
 JWT_SECRET="a-long-random-production-secret"
 JWT_EXPIRES_IN="7d"
 PORT=5000
@@ -78,6 +79,24 @@ VITE_API_URL="https://your-backend-domain.com/api"
 After deployment, update backend `CLIENT_ORIGIN` to the final Vercel URL.
 
 ## 4. Production Notes
+
+## Supabase Setup
+
+1. In Supabase, create a project.
+2. Open **Project Settings -> Database -> Connection string**.
+3. Copy the pooled connection string into `DATABASE_URL`.
+4. Copy the direct connection string into `DIRECT_URL`.
+5. Replace `[YOUR-PASSWORD]` with your Supabase database password.
+6. From the server folder, run:
+
+```powershell
+cd "C:\Users\ADMIN\OneDrive\Documents\student report\server"
+npm.cmd run prisma:push
+npm.cmd run setup:institution
+npm.cmd run check:db
+```
+
+If `check:db` passes, the backend is connected to Supabase.
 
 - Public visitors can see the homepage only.
 - Approved students and instructors can login.

@@ -5,4 +5,7 @@ dist
 *.log
 *.err
 *.err.log
+*.zip
+smart-education-portal-source/
+server/prisma/dev.db
 server/prisma/dev.db-journal

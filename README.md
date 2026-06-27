@@ -6,7 +6,7 @@ A production-style full-stack educational platform with student and instructor p
 
 - Frontend: React, Vite, React Router, Axios, Recharts, Lucide icons
 - Backend: Node.js, Express, Prisma ORM
-- Database: SQLite for local demo by default; switch `DATABASE_URL` to PostgreSQL/MySQL for deployment
+- Database: Supabase/PostgreSQL for production
 - Auth: JWT plus bcrypt password hashing
 - AI: OpenAI API for student assistant chat; local deterministic fallback remains for non-chat demo reports
 - Validation: Zod
@@ -85,7 +85,8 @@ Start-Process powershell -ArgumentList '-NoProfile','-Command','cd "C:\Users\ADM
 ## Environment Variables
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres"
 JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES_IN="7d"
 PORT=5000
@@ -95,7 +96,7 @@ OPENAI_MODEL="gpt-4o-mini"
 VITE_API_URL="http://localhost:5000/api"
 ```
 
-For production, use a managed PostgreSQL or MySQL connection string in `DATABASE_URL`, set a strong `JWT_SECRET`, and set `OPENAI_API_KEY` only on the backend.
+For production, use Supabase PostgreSQL connection strings in `DATABASE_URL` and `DIRECT_URL`, set a strong `JWT_SECRET`, and set `OPENAI_API_KEY` only on the backend when using OpenAI.
 
 To enable real OpenAI answers, create an API key in your OpenAI platform account, paste it into `server/.env`, and restart the backend server. The student assistant chat requires `OPENAI_API_KEY`; without it, the assistant shows a setup message instead of giving fallback answers.
 

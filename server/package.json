@@ -11,6 +11,7 @@
     "setup:institution": "node prisma/final-institution-data.js",
     "check:openai": "node scripts/check-openai.js",
     "check:ollama": "node scripts/check-ollama.js",
+    "check:db": "node scripts/check-db.js",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio"
   },

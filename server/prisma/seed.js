@@ -14,21 +14,9 @@ async function upsertUser(email, role) {
 }
 
 async function main() {
-  await prisma.notification.deleteMany();
-  await prisma.instructorRemark.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.aiFeedback.deleteMany();
-  await prisma.aiChat.deleteMany();
-  await prisma.mark.deleteMany();
-  await prisma.exam.deleteMany();
-  await prisma.attendanceRecord.deleteMany();
-  await prisma.attendanceSession.deleteMany();
-  await prisma.subjectInstructor.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.student.deleteMany();
-  await prisma.instructor.deleteMany();
-  await prisma.batch.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE "Notification", "InstructorRemark", "Report", "AiFeedback", "AiChat", "Mark", "Exam", "AttendanceRecord", "AttendanceSession", "SubjectInstructor", "Subject", "Student", "Instructor", "Batch", "User" RESTART IDENTITY CASCADE'
+  );
 
   const batch = await prisma.batch.create({
     data: { name: "CSE 2026 A", course: "B.Tech", branch: "Computer Science", year: 2, semester: 4, section: "A" }

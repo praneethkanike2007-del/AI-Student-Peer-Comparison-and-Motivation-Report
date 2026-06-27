@@ -47,16 +47,24 @@ instructorRouter.get(
   asyncHandler(async (req, res) => {
     const instructorId = req.user.instructor.id;
     const students = await assignedStudents(instructorId);
-    const snapshots = await Promise.all(students.map((student) => studentAcademicSnapshot(student.id)));
+    const snapshots = [];
+    for (const student of students) {
+      snapshots.push({
+        attendance: await attendanceSummary(student.id),
+        marks: await marksSummary(student.id, true)
+      });
+    }
     const ranked = students.map((student, index) => ({ student, snapshot: snapshots[index] }));
+    const byMarks = [...ranked].sort((a, b) => b.snapshot.marks.percentage - a.snapshot.marks.percentage);
+    const reportUsage = await prisma.report.count({ where: { studentId: { in: students.map((student) => student.id) } } });
     res.json({
       totalStudents: students.length,
       attendanceAverage: Math.round(ranked.reduce((sum, item) => sum + item.snapshot.attendance.percentage, 0) / (students.length || 1)),
       marksAverage: Math.round(ranked.reduce((sum, item) => sum + item.snapshot.marks.percentage, 0) / (students.length || 1)),
       lowAttendance: ranked.filter((item) => item.snapshot.attendance.percentage < 75).slice(0, 5),
       lowPerformers: ranked.filter((item) => item.snapshot.marks.percentage < 60).slice(0, 5),
-      topPerformers: ranked.sort((a, b) => b.snapshot.marks.percentage - a.snapshot.marks.percentage).slice(0, 5),
-      reportUsage: await prisma.report.count({ where: { studentId: { in: students.map((student) => student.id) } } })
+      topPerformers: byMarks.slice(0, 5),
+      reportUsage
     });
   })
 );

@@ -284,6 +284,10 @@ function Login() {
     await signIn(form);
   }
   async function signIn(credentials) {
+    if (!credentials.email?.trim() || !credentials.password?.trim()) {
+      setError("Please enter email and password, or click a sample account below.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -291,7 +295,7 @@ function Login() {
       saveSession(data);
       navigate(data.user.role === "STUDENT" ? "/student/dashboard" : "/instructor/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Login failed. Please check that the backend is running on localhost:5000.");
     } finally {
       setLoading(false);
     }
@@ -310,8 +314,8 @@ function Login() {
         <GraduationCap size={36} />
         <h1>Institution login</h1>
         <p>Only approved Sri Gowthami students and instructors can enter the portal. Visitors can view public information on the homepage.</p>
-        <label>Email<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-        <label>Password<input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+        <label>Email<input required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+        <label>Password<input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
         {error && <div className="inline-error">{error}</div>}
         <button className="primary-button login-submit" disabled={loading}>{loading ? "Checking access..." : "Sign in"}</button>
         <div className="sample-accounts">

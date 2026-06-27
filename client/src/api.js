@@ -1,9 +1,11 @@
 import axios from "axios";
 
-// On Vercel, VITE_API_URL should be set to "/api" (same domain)
-// Locally, it defaults to "http://localhost:5000/api"
+const apiBaseUrl = import.meta.env.VITE_API_URL?.trim();
+const isLocalFrontend = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+// Locally, the Vite preview runs on 4173 while the API runs on 5000.
+// In production, set VITE_API_URL to the deployed backend URL plus /api.
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+  baseURL: apiBaseUrl || (isLocalFrontend ? "http://localhost:5000/api" : `${window.location.origin}/api`)
 });
 
 api.interceptors.request.use((config) => {

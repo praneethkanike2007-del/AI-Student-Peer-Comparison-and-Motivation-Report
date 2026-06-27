@@ -14,24 +14,25 @@ import { requireAuth } from "./middleware/auth.js";
 export const app = express();
 
 app.use(helmet());
+const allowedOrigins = [
+  process.env.CLIENT_ORIGIN,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  "http://localhost:5173",
+  "http://localhost:4173"
+].filter(Boolean);
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc)
+    origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      // Allow localhost dev and any vercel.app domain
       if (
         origin.includes("localhost") ||
         origin.includes("127.0.0.1") ||
-        origin.includes(".vercel.app")
+        origin.endsWith(".vercel.app") ||
+        allowedOrigins.includes(origin)
       ) {
         return callback(null, true);
       }
-      // Also allow the configured CLIENT_ORIGIN
-      if (process.env.CLIENT_ORIGIN && origin === process.env.CLIENT_ORIGIN) {
-        return callback(null, true);
-      }
-      callback(null, true);
+      return callback(new Error(`CORS origin not allowed: ${origin}`));
     },
     credentials: true
   })

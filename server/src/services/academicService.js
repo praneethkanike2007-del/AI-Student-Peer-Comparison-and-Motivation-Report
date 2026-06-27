@@ -11,6 +11,14 @@ export function gradeFor(score, maxMarks) {
   return "Needs Work";
 }
 
+async function mapSeries(items, mapper) {
+  const results = [];
+  for (const item of items) {
+    results.push(await mapper(item));
+  }
+  return results;
+}
+
 export async function getStudentForUser(user) {
   if (!user.student) throw new HttpError(404, "Student profile not found");
   return prisma.student.findUnique({
@@ -110,7 +118,7 @@ export async function marksSummary(studentId, includeUnpublished = false) {
 export async function batchComparison(studentId) {
   const student = await prisma.student.findUnique({ where: { id: studentId }, include: { batch: true } });
   const peers = await prisma.student.findMany({ where: { batchId: student.batchId }, select: { id: true } });
-  const summaries = await Promise.all(peers.map(async (peer) => ({ id: peer.id, ...(await marksSummary(peer.id)) })));
+  const summaries = await mapSeries(peers, async (peer) => ({ id: peer.id, ...(await marksSummary(peer.id)) }));
   const ranked = summaries.sort((a, b) => b.percentage - a.percentage);
   const current = ranked.find((item) => item.id === studentId) || { percentage: 0 };
   const rank = ranked.findIndex((item) => item.id === studentId) + 1 || null;
@@ -133,13 +141,11 @@ export async function batchComparison(studentId) {
 }
 
 export async function studentAcademicSnapshot(studentId) {
-  const [attendance, marks, comparison, reports, feedback, notifications] = await Promise.all([
-    attendanceSummary(studentId),
-    marksSummary(studentId),
-    batchComparison(studentId),
-    prisma.report.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 8 }),
-    prisma.aiFeedback.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 5 }),
-    prisma.notification.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 6 })
-  ]);
+  const attendance = await attendanceSummary(studentId);
+  const marks = await marksSummary(studentId);
+  const comparison = await batchComparison(studentId);
+  const reports = await prisma.report.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 8 });
+  const feedback = await prisma.aiFeedback.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 5 });
+  const notifications = await prisma.notification.findMany({ where: { studentId }, orderBy: { createdAt: "desc" }, take: 6 });
   return { attendance, marks, comparison, reports, feedback, notifications };
 }

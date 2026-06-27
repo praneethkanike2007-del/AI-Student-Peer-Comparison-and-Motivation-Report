@@ -2,8 +2,10 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../prisma.js";
 import { HttpError } from "../utils/http.js";
 
+const JWT_SECRET = process.env.JWT_SECRET || "smartedu-default-jwt-secret-2026";
+
 export const signToken = (user) =>
-  jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, {
+  jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d"
   });
 
@@ -12,7 +14,7 @@ export async function requireAuth(req, _res, next) {
     const header = req.headers.authorization || "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : null;
     if (!token) throw new HttpError(401, "Authentication required");
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       include: { student: true, instructor: true }

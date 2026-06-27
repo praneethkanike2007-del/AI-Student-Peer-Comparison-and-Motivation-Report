@@ -2,14 +2,14 @@
   "buildCommand": "cd server && npm install && npx prisma generate && npx prisma db push && node prisma/seed.js && cd .. && cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
   "functions": {
-    "server/api/index.js": {
+    "api/index.js": {
       "includeFiles": "server/**"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/api/index.js"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",

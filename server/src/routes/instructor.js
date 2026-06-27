@@ -42,6 +42,13 @@ async function assignedBatches(instructorId) {
   return [...new Map(subjects.map((subject) => [subject.batch.id, subject.batch])).values()];
 }
 
+async function assertInstructorRosterAccess(instructorId, studentIds) {
+  const allowed = await assignedStudents(instructorId);
+  const allowedIds = new Set(allowed.map((student) => student.id));
+  const blocked = studentIds.find((studentId) => !allowedIds.has(studentId));
+  if (blocked) throw new HttpError(403, "One or more students are outside assigned batches");
+}
+
 async function dashboardSnapshots(students) {
   const studentIds = students.map((student) => student.id);
   const byStudent = new Map(students.map((student) => [
@@ -241,21 +248,25 @@ instructorRouter.post(
   asyncHandler(async (req, res) => {
     const { subjectId, date, topic, records } = req.validated.body;
     await assertInstructorSubjectAccess(req.user.instructor.id, subjectId);
-    await Promise.all(records.map((record) => assertInstructorStudentAccess(req.user.instructor.id, record.studentId)));
+    await assertInstructorRosterAccess(req.user.instructor.id, records.map((record) => record.studentId));
     const session = await prisma.attendanceSession.upsert({
       where: { subjectId_date: { subjectId, date: new Date(date) } },
       create: { subjectId, instructorId: req.user.instructor.id, date: new Date(date), topic },
       update: { topic }
     });
-    await Promise.all(
-      records.map((record) =>
-        prisma.attendanceRecord.upsert({
-          where: { sessionId_studentId: { sessionId: session.id, studentId: record.studentId } },
-          create: { sessionId: session.id, studentId: record.studentId, status: record.status, note: record.note },
-          update: { status: record.status, note: record.note }
-        })
-      )
-    );
+    await prisma.$transaction([
+      prisma.attendanceRecord.deleteMany({
+        where: { sessionId: session.id, studentId: { in: records.map((record) => record.studentId) } }
+      }),
+      prisma.attendanceRecord.createMany({
+        data: records.map((record) => ({
+          sessionId: session.id,
+          studentId: record.studentId,
+          status: record.status,
+          note: record.note
+        }))
+      })
+    ]);
     res.status(201).json({ session, message: "Attendance saved" });
   })
 );
@@ -266,17 +277,19 @@ instructorRouter.post(
   asyncHandler(async (req, res) => {
     const { subjectId, title, type, maxMarks, heldOn, published, marks } = req.validated.body;
     await assertInstructorSubjectAccess(req.user.instructor.id, subjectId);
-    await Promise.all(marks.map((mark) => assertInstructorStudentAccess(req.user.instructor.id, mark.studentId)));
+    await assertInstructorRosterAccess(req.user.instructor.id, marks.map((mark) => mark.studentId));
     const invalid = marks.find((mark) => mark.score > maxMarks);
     if (invalid) throw new HttpError(422, "Score cannot exceed max marks");
     const exam = await prisma.exam.create({ data: { subjectId, title, type, maxMarks, heldOn: new Date(heldOn), published } });
-    await Promise.all(
-      marks.map((mark) =>
-        prisma.mark.create({
-          data: { examId: exam.id, subjectId, studentId: mark.studentId, score: mark.score, grade: gradeFor(mark.score, maxMarks) }
-        })
-      )
-    );
+    await prisma.mark.createMany({
+      data: marks.map((mark) => ({
+        examId: exam.id,
+        subjectId,
+        studentId: mark.studentId,
+        score: mark.score,
+        grade: gradeFor(mark.score, maxMarks)
+      }))
+    });
     res.status(201).json({ exam, message: "Marks saved" });
   })
 );
@@ -328,12 +341,12 @@ instructorRouter.patch(
     const exam = await prisma.exam.findUnique({ where: { id: req.validated.params.examId } });
     if (!exam) throw new HttpError(404, "Exam not found");
     await assertInstructorSubjectAccess(req.user.instructor.id, exam.subjectId);
+    await assertInstructorRosterAccess(req.user.instructor.id, req.validated.body.marks.map((mark) => mark.studentId));
     const invalid = req.validated.body.marks.find((mark) => mark.score > exam.maxMarks);
     if (invalid) throw new HttpError(422, "Score cannot exceed max marks");
-    await Promise.all(
-      req.validated.body.marks.map(async (mark) => {
-        await assertInstructorStudentAccess(req.user.instructor.id, mark.studentId);
-        return prisma.mark.upsert({
+    await prisma.$transaction(
+      req.validated.body.marks.map((mark) =>
+        prisma.mark.upsert({
           where: { examId_studentId: { examId: exam.id, studentId: mark.studentId } },
           create: {
             examId: exam.id,
@@ -343,8 +356,8 @@ instructorRouter.patch(
             grade: gradeFor(mark.score, exam.maxMarks)
           },
           update: { score: mark.score, grade: gradeFor(mark.score, exam.maxMarks) }
-        });
-      })
+        })
+      )
     );
     res.json({ message: "Marks updated" });
   })

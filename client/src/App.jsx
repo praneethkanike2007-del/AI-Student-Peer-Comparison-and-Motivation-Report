@@ -75,6 +75,17 @@ function writeFetchCache(path, data) {
   }
 }
 
+function clearPortalCache() {
+  fetchCache.clear();
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith(cachePrefix))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Ignore storage errors; server reload still refreshes current view.
+  }
+}
+
 function writeRelatedCaches(path, data) {
   if (path === "/student/dashboard") {
     writeFetchCache("/student/attendance", data.attendance);
@@ -1051,6 +1062,7 @@ function AcademicEntry({ type }) {
           marks: selectedStudents.map((s) => ({ studentId: s.id, score: Number(form.get(`score-${s.id}`)) }))
         });
       }
+      clearPortalCache();
       setMessage(type === "attendance" ? "Attendance saved for the full assigned roster." : "Marks saved for the full assigned roster.");
       await history.reload();
     } catch (err) {
@@ -1065,6 +1077,7 @@ function AcademicEntry({ type }) {
       await api.patch(`/instructor/marks/${updateExamId}`, {
         marks: roster.map((student) => ({ studentId: student.id, score: Number(form.get(`update-score-${student.id}`)) }))
       });
+      clearPortalCache();
       setMessage("Existing marks updated. Totals, grades, percentages, and rank will reflect the revised scores.");
       await history.reload();
     } catch (err) {

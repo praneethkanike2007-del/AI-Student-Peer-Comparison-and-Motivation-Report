@@ -13,7 +13,7 @@ export function gradeFor(score, maxMarks) {
 
 export async function getStudentForUser(user) {
   if (!user.student) throw new HttpError(404, "Student profile not found");
-  if (user.student.batch) return user.student;
+  if (user.student.batch && user.student.user) return user.student;
   return prisma.student.findUnique({
     where: { id: user.student.id },
     include: { user: true, batch: true }

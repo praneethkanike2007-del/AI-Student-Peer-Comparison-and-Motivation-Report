@@ -517,23 +517,25 @@ function StudentDashboard() {
 
 function Profile() {
   const { loading, error, data } = useFetch("/student/profile");
+  const currentUser = readUser();
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
   const s = data.student;
+  const batch = s.batch || {};
   const fields = {
     "Full name": s.fullName,
     "Student ID": s.studentCode,
     "Roll number": s.rollNumber,
     Gender: s.gender,
-    Email: s.user.email,
+    Email: s.user?.email || currentUser?.email || "-",
     Phone: s.phone,
     "Parent or guardian": s.parentName,
     "Parent contact": s.parentContact,
     Address: s.address,
-    Course: s.batch.course,
-    Branch: s.batch.branch,
-    "Year / semester": `${s.batch.year} / ${s.batch.semester}`,
-    Section: s.batch.section,
+    Course: batch.course || "-",
+    Branch: batch.branch || "-",
+    "Year / semester": batch.year && batch.semester ? `${batch.year} / ${batch.semester}` : "-",
+    Section: batch.section || "-",
     "Admission number": s.admissionNumber,
     Residence: s.residenceType
   };
